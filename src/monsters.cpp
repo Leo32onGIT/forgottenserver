@@ -341,7 +341,7 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 				}
 
 				if ((minSpeedChange ^ maxSpeedChange) < 0) {
-					std::cout << "[Error - Monsters::deserializeSpell] - " << description << " - invalid speed change range: " << name << std::endl;
+					std::cout << "[Error - Monsters::deserializeSpell] - " << description << " - invalid speed change range: minspeedchange=\"" << minSpeedChange << "\" maxspeedchange=\"" << maxSpeedChange << "\"" << std::endl;
 					delete combat;
 					return false;
 				}
