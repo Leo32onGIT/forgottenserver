@@ -340,7 +340,7 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 					maxSpeedChange = std::max(-1000, pugi::cast<int32_t>(attr.value()));
 				}
 
-				if ((minSpeedChange ^ maxSpeedChange) < 0) {
+				if (minSpeedChange == 0 || (minSpeedChange == 0 && maxSpeedChange == 0)) {
 					std::cout << "[Error - Monsters::deserializeSpell] - " << description << " - invalid speed change range: minspeedchange=\"" << minSpeedChange << "\" maxspeedchange=\"" << maxSpeedChange << "\"" << std::endl;
 					delete combat;
 					return false;
@@ -628,23 +628,40 @@ bool Monsters::deserializeSpell(MonsterSpell* spell, spellBlock_t& sb, const std
 			}
 			combat->setParam(COMBAT_PARAM_TYPE, spell->combatType);
 		} else if (tmpName == "speed") {
-			int32_t speedChange = 0;
+			int32_t minSpeedChange = 0;
+			int32_t maxSpeedChange = 0;
 			int32_t duration = 10000;
 
 			if (spell->duration != 0) {
 				duration = spell->duration;
 			}
 
-			if (spell->speedChange != 0) {
-				speedChange = spell->speedChange;
-				if (speedChange < -1000) {
-					//cant be slower than 100%
-					speedChange = -1000;
+			if (spell->minSpeedChange == 0 || (spell->minSpeedChange == 0 && spell->maxSpeedChange == 0)) {
+				std::cout << "[Error - Monsters::deserializeSpell] - " << description << " - invalid speed change range: spell->minSpeedChange=\"" << spell->minSpeedChange << "\" spell->maxSpeedChange=\"" << spell->maxSpeedChange << "\"" << std::endl;
+				delete spell;
+				return false;
+			}
+
+			minSpeedChange = spell->minSpeedChange;
+			if (minSpeedChange < -1000) {
+				//cant be slower than 100%
+				minSpeedChange = maxSpeedChange = -1000;
+			}
+			maxSpeedChange = minSpeedChange;
+
+			if (spell->maxSpeedChange != 0) {
+				maxSpeedChange = spell->maxSpeedChange;
+				if (maxSpeedChange < -1000) {
+					maxSpeedChange = -1000;
 				}
 			}
 
+			if (minSpeedChange > maxSpeedChange) {
+				std::tie(minSpeedChange, maxSpeedChange) = std::minmax(minSpeedChange, maxSpeedChange);
+			}
+
 			ConditionType_t conditionType;
-			if (speedChange > 0) {
+			if (minSpeedChange >= 0) {
 				conditionType = CONDITION_HASTE;
 				combat->setParam(COMBAT_PARAM_AGGRESSIVE, 0);
 			} else {
@@ -652,7 +669,7 @@ bool Monsters::deserializeSpell(MonsterSpell* spell, spellBlock_t& sb, const std
 			}
 
 			ConditionSpeed* condition = static_cast<ConditionSpeed*>(Condition::createCondition(CONDITIONID_COMBAT, conditionType, duration, 0));
-			condition->setFormulaVars(speedChange / 1000.0, 0, speedChange / 1000.0, 0);
+			condition->setFormulaVars(minSpeedChange / 1000.0, 0, maxSpeedChange / 1000.0, 0);
 			combat->addCondition(condition);
 		} else if (tmpName == "outfit") {
 			int32_t duration = 10000;
